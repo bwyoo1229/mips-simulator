@@ -1,169 +1,121 @@
 import sys
 
-f = open(sys.argv[1], 'r') # 파일 읽기
+fr = open(sys.argv[1], 'r') # 파일 읽기
+fw = open(sys.argv[1] + '_out.txt', 'w')
 
 ''' stages 함수 선언 '''
 ### Instruction Fetch ###
-def IF(instruction):
+def fetch(instruction):
 	# instruction이 안들어왔거나 flush 해야할때 0 반환
 	if (instruction == 0):
 		pcw = 0
 		iiw = 0
-		return pcw, iiw
-	
-	# instruction이 있는 경우 pc write = 1, IF/ID write = 1
-	pcw = 1
-	iiw = 1
-	return pcw, iiw
-
-### Instruction Decode ###
-def ID(instruction):
-	# instruction이 들어오지 않았다면 레지스터에 모두 0값으로 할당
-	if (instruction == 0):
 		rs = 0
 		rt = 0
 		rd = 0
-		return rs, rt, rd
+		return pcw, iiw, rs, rt, rd
 
-	# instruction이 들어왔다면 instruction을 파싱해서 각 레지스터 값을 반환
-	instruction = instruction.strip('\n').split(' ')
-	opcode = instruction[0]
-
-	# I-Type load and store parsing
-	if opcode == 'LW' or opcode == 'SW':
-		rd = instruction[1].strip(',')[1]
-		rt, rs = instruction[2].split('(')
-		rt = 0
-		rs = rs.strip(')')[1]
-	
-	# I-Type immediate values parsing
-	elif opcode == 'ADDI' or opcode == 'ORI':
-		rt = instruction[1].strip(',')[1]
-		rs = instruction[2].strip(',')[1]
-		rd = 0
-
-	# R-Type parsing
 	else:
-		rd = instruction[1].strip(',')[1]
-		rs = instruction[2].strip(',')[1]
-		rt = instruction[3][1]
+		# instruction이 들어왔다면 instruction을 파싱해서 각 레지스터 값을 반환
+		instruction = instruction.strip('\n').split(' ')
+		opcode = instruction[0]
 
-	return rs, rt, rd
+		# I-Type load and store parsing
+		if opcode == 'LW' or opcode == 'SW':
+			rt = instruction[1].strip(',')[1]
+			rd, rs = instruction[2].split('(')
+			rd = 0
+			rs = rs.strip(')')[1]
+		# I-Type immediate values parsing
+		elif opcode == 'ADDI' or opcode == 'ORI':
+			rt = instruction[1].strip(',')[1]
+			rs = instruction[2].strip(',')[1]
+			rd = 0
 
-# def EX(instruction):
-# 	if (instruction == 0):
-# 		print(0)
-# 		return
+		# R-Type parsing
+		else:
+			rd = instruction[1].strip(',')[1]
+			rs = instruction[2].strip(',')[1]
+			rt = instruction[3][1]
 
-# 	instruction = instruction.strip('\n').split(' ')
-# 	opcode = instruction[0]
-# 	if opcode == 'LW' or opcode == 'SW':
-# 		rd = instruction[1].strip(',')
-# 		off, add = instruction[2].split('(')
-# 		add = add.strip(')')
-	
-# 	else:
-# 		rd = instruction[1].strip(',')
-# 		rs = instruction[2].strip(',')
-# 		rt = instruction[3]
-	
-# def MEM(instruction):
-# 	if (instruction == 0):
-# 		print(0)
-# 		return
+		pcw = 1
+		iiw = 1
 
-# 	instruction = instruction.strip('\n').split(' ')
-# 	opcode = instruction[0]
-# 	if opcode == 'LW' or opcode == 'SW':
-# 		rd = instruction[1].strip(',')
-# 		off, add = instruction[2].split('(')
-# 		add = add.strip(')')
-	
-# 	else:
-# 		rd = instruction[1].strip(',')
-# 		rs = instruction[2].strip(',')
-# 		rt = instruction[3]
-	
-# def WB(instruction):
-# 	if (instruction == 0):
-# 		print(0)
-# 		return
-
-# 	instruction = instruction.strip('\n').split(' ')
-# 	opcode = instruction[0]
-# 	if opcode == 'LW' or opcode == 'SW':
-# 		rd = instruction[1].strip(',')
-# 		off, add = instruction[2].split('(')
-# 		add = add.strip(')')
-	
-# 	else:
-# 		rd = instruction[1].strip(',')
-# 		rs = instruction[2].strip(',')
-# 		rt = instruction[3]
-
+	return pcw, iiw, rs, rt, rd
 
 ### 출력 테이블 ###
-print('| IF/ID           | ID/EX                                     | EX/MEM       | MEM/WB       | Forward               |                                      |')
+print('|-------------|-----------------|-------------------------------------------|--------------|--------------|-----------------------|-----------------------|')
+print('| Cycle #     | IF/ID           | ID/EX                                     | EX/MEM       | MEM/WB       | Forward               |                                      |')
+fw.write('|-------------|-----------------|-------------------------------------------|--------------|--------------|-----------------------|-----------------------|\n')
+fw.write('| Cycle #     | IF/ID           | ID/EX                                     | EX/MEM       | MEM/WB       | Forward               |                                      |\n')
 ### 메인 ###
 count = 0
+cycle = 1
 while True:
-	instruction = f.readline()
+	instruction = fr.readline()
 	if not instruction:
 		if count == 5:
 			break
 		count += 1
 
-	### writeback ###
-	try:
-		if memory == 0:
-			writeback = 0
-		else:
-			writeback = memory
-	except:
-		writeback = 0
+	# ### Writeback ###
+	# try:
+	# 	if memory == 0:
+	# 		writeback = 0
+	# 	else:
+	# 		writeback = memory
+	# except:
+	# 	writeback = 0
 	
-	### memory ###
-	try:
-		if execute == 0:
-			memory = 0
-		else:
-			memory = execute
-	except:
-		memory = 0
+	# ### Memory ###
+	# try:
+	# 	if execute == 0:
+	# 		memory = 0
+	# 	else:
+	# 		memory = execute
+	# except:
+	# 	memory = 0
 	
-	### execute ###
+	### Execution ###
 	try:
-		if decode == 0:
-			execute = 0
+		if iirs == 0 and iirt == 0 and iird  == 0: # 전부 0인 경우 버블이다
+			iers = 0
+			iert = 0
+			ierd = 0
 		else:
-			execute = decode
+			iers = iirs
+			iert = iirt
+			ierd = iird
 	except:
-		execute = 0
+		iers = 0
+		iert = 0
+		ierd = 0
 	
-	### decode ###
+	### Instruction Decode ###
 	try:
-		if fetch == 0:
-			decode = 0
+		if pcw == 1 and iiw == 1:
+			iirs = rs
+			iirt = rt
+			iird = rd
 		else:
-			decode = fetch
+			iirs = 0
+			iirt = 0
+			iird = 0
 	except:
-		decode = 0
+		iirs = 0
+		iirt = 0
+		iird = 0
 	
-	### fetch ###
-	if instruction == '':
-		fetch = 0
-	else:
-		fetch = instruction
+	### Instruction Fetch ###
+	if not instruction:
+		instruction = 0
 
-	pcw, iiw = IF(fetch)
-	iirs, iirt, iird = ID(decode)
-	# iers, iert, ierd, iew, iem, ied = EX(execute)
-	iers = 0
-	iert = 0
-	ierd = 0
+	pcw, iiw, rs, rt, rd = fetch(instruction)
+
 	iew = 0 
 	iem = 0
 	ied = 0
+
 	# emrd, emw = MEM(memory)
 	emrd = 0
 	emw = 0
@@ -174,13 +126,19 @@ while True:
 	fa = 0
 	fb = 0
 
-	print('| $rs | $rt | $rd | $rs | $rt | $rd | $write | memread | $dst | $rd | $write | $rd | $write | Forward A | Forward B | PC write | IF/ID write|')# | ID/EX flush |')
-	print('| {:2}  | {:2}  | {:2}  | {:2}  | {:2}  | {:2}  | {:2}     | {:2}      | {:2}   | {:2}  | {:2}     | {:2}  | {:2}     | {:2}        | {:2}        | {:2}       | {:2}          |'\
-	.format(iirs, iirt, iird, iers, iert, ierd, iew, iem, ied, emrd, emw, mwrd, mww, fa, fb, pcw, iiw)) #, ief))
-	print('|-----|-----|-----|-----|-----|-----|--------|---------|------|-----|--------|-----|--------|-----------|-----------|----------|------------|')
-
-
-
-
+	print('|             | $rs | $rt | $rd | $rs | $rt | $rd | $write | memread | $dst | $rd | $write | $rd | $write | Forward A | Forward B | PC write | IF/ID write|')# | ID/EX flush |')
+	print('| cycle {:>3}   | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}     | {:>2}      | {:>2}   | {:>2}  | {:>2}     | {:>2}  | {:>2}     | {:>2}        | {:>2}        | {:>2}       | {:>2}          |'\
+	.format(cycle, iirs, iirt, iird, iers, iert, ierd, iew, iem, ied, emrd, emw, mwrd, mww, fa, fb, pcw, iiw)) #, ief))
+	print('|-------------|-----|-----|-----|-----|-----|-----|--------|---------|------|-----|--------|-----|--------|-----------|-----------|----------|------------|')
 	
-f.close()
+	fw.write('|             | $rs | $rt | $rd | $rs | $rt | $rd | $write | memread | $dst | $rd | $write | $rd | $write | Forward A | Forward B | PC write | IF/ID write|\n')
+	fw.write('| cycle {:>3}   | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}     | {:>2}      | {:>2}   | {:>2}  | {:>2}     | {:>2}  | {:>2}     | {:>2}        | {:>2}        | {:>2}       | {:>2}          |\n'\
+	.format(cycle, iirs, iirt, iird, iers, iert, ierd, iew, iem, ied, emrd, emw, mwrd, mww, fa, fb, pcw, iiw))
+	fw.write('|-------------|-----|-----|-----|-----|-----|-----|--------|---------|------|-----|--------|-----|--------|-----------|-----------|----------|------------|\n')
+	
+	cycle += 1
+
+
+### 파일 읽기 쓰기 종료 ###
+fr.close()
+fw.close()

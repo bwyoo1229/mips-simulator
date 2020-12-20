@@ -43,7 +43,7 @@ def fetch(instruction):
 
 		pcw = 1
 		iiw = 1
-
+		
 		return opcode, pcw, iiw, rs, rt, rd
 
 
@@ -59,9 +59,9 @@ cycle = 0
 
 while True:
 	instruction = fr.readline()
-	if not instruction:
-		if count == 5:
-			break
+	if not instruction: # 더 이상 읽을 instruction이 없을 경우
+		if count == 5:	# 현재 들어온 싸이클을 모두 읽고
+			break # 종료
 		count += 1
 
 
@@ -74,6 +74,7 @@ while True:
 			mwrd = emrd
 			mww = emw
 	
+	# 첫 싸이클 때 입력 값이 없어서 생기는 오류 처리
 	except:
 		mwrd = 0
 		mww = 0
@@ -93,6 +94,7 @@ while True:
 
 			emw = iew # ID/EX stage에서 넘겨 받은 regWrite
 
+	# 첫 싸이클 때 입력 값이 없어서 생기는 오류 처리
 	except:
 		emopc = 0
 		emrd = 0
@@ -117,24 +119,23 @@ while True:
 			ierd = iird
 			iew = 1
 
-			# forwarding determination
-			# 더블 데이터 해저드 발생 시 EX hazard로 덮어씌울 수 있도록 MEM 해저드 먼저 연산
+			# Forwarding
 			# fa, fb 값 초기화
 			fa = '00'
 			fb = '00' 
-
-			# MEM hazard
-			if (mww == 1 and mwrd != 0) and mwrd == iers:
-				fa = '01'
-			elif (mww == 1 and mwrd != 0) and mwrd == iert:
-				fb = '10'
 
 			# EX hazard
 			if emw == 1 and emrd != 0 and emrd == iers:
 				fa = '10'
 			elif emw == 1 and emrd != 0 and emrd == iert:
 				fb = '10'
-			
+
+			# MEM hazard (not 의 뒷부분은 더블 데이터 해저드를 방지 하기 위한 조건 검사)
+			if mww == 1 and mwrd != 0 and mwrd == iers and not (emw == 1 and emrd != 0 and emrd == iers):
+				fa = '01'
+			elif mww == 1 and mwrd != 0 and mwrd == iert and not (emw == 1 and emrd != 0 and emrd == iert):
+				fb = '01'
+
 			# lw instruction 이라면 메모리를 사용하는 것이기 때문에 memread == 1
 			if ieopc == 'LW':
 				iem = 1
@@ -149,6 +150,7 @@ while True:
 			else: # I-Type 일경우 (destination register는 rt)
 				ied = 0
 
+	# 첫 싸이클 때 입력 값이 없어서 생기는 오류 처리
 	except:
 		ieopc = 0
 		iers = 0
@@ -167,11 +169,22 @@ while True:
 			iirs = rs
 			iirt = rt
 			iird = rd
-		else: # 버블 시
+
+			# load-use data hazed determination
+			if iem == 1 and (iert == iirs or iert == iirt):
+				# pc write와 IF/ID Write 0 으로 설정
+				pcw = 0
+				iiw = 0
+				# 다음 stage로 값이 넘어가지 않도록 iiopc == 0으로 변경
+				iiopc = 0
+
+		else: # instruction이 더이상 없을 시
 			iiopc = 0
 			iirs = 0
 			iirt = 0
 			iird = 0
+
+	# 첫 싸이클 때 입력 값이 없어서 생기는 오류 처리
 	except:
 		iiopc = 0
 		iirs = 0
@@ -182,9 +195,16 @@ while True:
 	if not instruction:
 		instruction = 0
 
-	opc, pcw, iiw, rs, rt, rd = fetch(instruction)
-
-	# wb 예외처리 필요함!!
+	try:
+		if (pcw == 1 and iiw == 1): # pipeline bubble이 발생하지 않을 경우
+			opc, pcw, iiw, rs, rt, rd = fetch(instruction)
+		
+		else:	# pipeline이 발생했을 경우 새로운 Instruction을 불러오지 않고 한번 더 같은 instruction으로 진행 
+			# pc write 와 IF/ID write 를 == 1로 재설정
+			pcw = 1
+			iiw = 1
+	except:
+		opc, pcw, iiw, rs, rt, rd = fetch(instruction)
 	
 	cycle += 1 # 사이클 수 1 증가 
 

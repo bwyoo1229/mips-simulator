@@ -4,7 +4,6 @@ import sys
 fr = open(sys.argv[1], 'r') # 파일 읽기
 fw = open(sys.argv[1] + '.out.txt', 'w') # 결과 파일 쓰기
 
-
 ''' Instruction을 받아오는 함수 선언 '''
 ### Instruction Fetch ###
 def fetch(instruction):
@@ -14,8 +13,8 @@ def fetch(instruction):
 		rs = 0
 		rt = 0
 		rd = 0
-		pcw = 0
-		iiw = 0
+		pcw = 1
+		iiw = 1
 		return opcode, pcw, iiw, rs, rt, rd
 
 	else:
@@ -43,14 +42,14 @@ def fetch(instruction):
 
 		pcw = 1
 		iiw = 1
-		
+
 		return opcode, pcw, iiw, rs, rt, rd
 
 
 ### 출력 테이블 ###
-fw.write('|-------------|-----------------|-------------------------------------------|--------------|--------------|-----------------------|-----------------------|\n')
+fw.write('|-------------|-----------------|-------------------------------------------|--------------|--------------|-----------------------|--------------------------------------|\n')
 fw.write('| Cycle #     | IF/ID           | ID/EX                                     | EX/MEM       | MEM/WB       | Forward               |                                      |\n')
-fw.write('|-------------|-----------------|-------------------------------------------|--------------|--------------|-----------------------|-----------------------|\n')
+fw.write('|-------------|-----------------|-------------------------------------------|--------------|--------------|-----------------------|--------------------------------------|\n')
 
 
 ''' 메인 프로세서 '''
@@ -58,12 +57,8 @@ count = 0
 cycle = 0
 
 while True:
-	instruction = fr.readline()
-	if not instruction: # 더 이상 읽을 instruction이 없을 경우
-		if count == 5:	# 현재 들어온 싸이클을 모두 읽고
-			break # 종료
-		count += 1
-
+	# 싸이클 수 증가
+	cycle += 1
 
 	### Writeback ###
 	try:
@@ -171,7 +166,7 @@ while True:
 			iird = rd
 
 			# load-use data hazed determination
-			if iem == 1 and (iert == iirs or iert == iirt):
+			if iem == 1 and (iert == iirs or iert == iirt != 0) and iert != 0:
 				# pc write와 IF/ID Write 0 으로 설정
 				pcw = 0
 				iiw = 0
@@ -190,31 +185,60 @@ while True:
 		iirs = 0
 		iirt = 0
 		iird = 0
-	
-	### Instruction Fetch ###
-	if not instruction:
-		instruction = 0
+
 
 	try:
-		if (pcw == 1 and iiw == 1): # pipeline bubble이 발생하지 않을 경우
+		if (pcw != 0 and iiw != 0): # pipeline bubble이 발생하지 않을 경우
+			# instruction 읽어오기
+			instruction = fr.readline()
+			if not instruction:
+				instruction = 0
+				
+			### Instruction Fetch ###
 			opc, pcw, iiw, rs, rt, rd = fetch(instruction)
+			ief = 0
 		
-		else:	# pipeline이 발생했을 경우 새로운 Instruction을 불러오지 않고 한번 더 같은 instruction으로 진행 
-			# pc write 와 IF/ID write 를 == 1로 재설정
+		else:	# pipeline stall을 해야할 경우 새로운 Instruction을 불러오지 않고 한번 더 같은 instruction으로 진행
+			if not instruction: # 더 이상 읽을 instruction이 없을 경우
+				if count == 5:	# 현재 들어온 싸이클을 모두 읽은 후 종료
+					break # 종료
+				count += 1
+
+			ief = 1 # bubble을 만들어야하기 때문에 flush는 1
+			# 파이프라인 버블이 있을 때 출력
+			### 테이블 출력 ###
+			fw.write('|             | $rs | $rt | $rd | $rs | $rt | $rd | $write | memread | $dst | $rd | $write | $rd | $write | Forward A | Forward B | PC write | IF/ID write | ID/EX flush |\n')
+			fw.write('| Cycle {:>3}   | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}     | {:>2}      | {:>2}   | {:>2}  | {:>2}     | {:>2}  | {:>2}     | {:>2}        | {:>2}        | {:>2}       | {:>2}          | {:>2}          |\n'\
+			.format(cycle, iirs, iirt, iird, iers, iert, ierd, iew, iem, ied, emrd, emw, mwrd, mww, fa, fb, pcw, iiw, ief))
+			fw.write('|-------------|-----|-----|-----|-----|-----|-----|--------|---------|------|-----|--------|-----|--------|-----------|-----------|----------|-------------|-------------|\n')
+			
+			# pc write 와 IF/ID write 를 == 1로 와 flush 를 0으로 재설정 후 다음 싸이클로 continue
 			pcw = 1
 			iiw = 1
-	except:
-		opc, pcw, iiw, rs, rt, rd = fetch(instruction)
-	
-	cycle += 1 # 사이클 수 1 증가 
+			ief = 0
+			continue
 
+	except:
+		# instruction 읽어오기
+		instruction = fr.readline()
+		if not instruction:
+				instruction = 0
+
+		### Instruction Fetch ###
+		opc, pcw, iiw, rs, rt, rd = fetch(instruction)
+		ief = 0
 	
+	if not instruction: # 더 이상 읽을 instruction이 없을 경우
+		if count == 5:	# 현재 들어온 싸이클을 모두 읽은 후 종료
+			break # 종료
+		count += 1
+		
 	### 테이블 출력 ###
-	fw.write('|             | $rs | $rt | $rd | $rs | $rt | $rd | $write | memread | $dst | $rd | $write | $rd | $write | Forward A | Forward B | PC write | IF/ID write|\n')
-	fw.write('| Cycle {:>3}   | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}     | {:>2}      | {:>2}   | {:>2}  | {:>2}     | {:>2}  | {:>2}     | {:>2}        | {:>2}        | {:>2}       | {:>2}          |\n'\
-	.format(cycle, iirs, iirt, iird, iers, iert, ierd, iew, iem, ied, emrd, emw, mwrd, mww, fa, fb, pcw, iiw))
-	fw.write('|-------------|-----|-----|-----|-----|-----|-----|--------|---------|------|-----|--------|-----|--------|-----------|-----------|----------|------------|\n')
-	
+	fw.write('|             | $rs | $rt | $rd | $rs | $rt | $rd | $write | memread | $dst | $rd | $write | $rd | $write | Forward A | Forward B | PC write | IF/ID write | ID/EX flush |\n')
+	fw.write('| Cycle {:>3}   | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}     | {:>2}      | {:>2}   | {:>2}  | {:>2}     | {:>2}  | {:>2}     | {:>2}        | {:>2}        | {:>2}       | {:>2}          | {:>2}          |\n'\
+	.format(cycle, iirs, iirt, iird, iers, iert, ierd, iew, iem, ied, emrd, emw, mwrd, mww, fa, fb, pcw, iiw, ief))
+	fw.write('|-------------|-----|-----|-----|-----|-----|-----|--------|---------|------|-----|--------|-----|--------|-----------|-----------|----------|-------------|-------------|\n')
+
 
 ### 파일 읽기 쓰기 종료 ###
 fr.close()

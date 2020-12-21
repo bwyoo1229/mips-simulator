@@ -22,20 +22,16 @@ def fetch(instruction):
 		instruction = instruction.strip('\n').split(' ')
 		opcode = instruction[0]
 
-		# I-Type load and store parsing
-		if opcode == 'LW' or opcode == 'SW':
+		if opcode == 'ADDI' or opcode == 'ORI': # I-Type immediate values parsing
+			rt = instruction[1].strip(',')[1]
+			rs = instruction[2].strip(',')[1]
+			rd = 0
+		elif opcode == 'LW' or opcode == 'SW': # I-Type load and store parsing
 			rt = instruction[1].strip(',')[1]
 			rd, rs = instruction[2].split('(')
 			rd = 0
 			rs = rs.strip(')')[1]
-		# I-Type immediate values parsing
-		elif opcode == 'ADDI' or opcode == 'ORI':
-			rt = instruction[1].strip(',')[1]
-			rs = instruction[2].strip(',')[1]
-			rd = 0
-
-		# R-Type parsing
-		else:
+		else: # R-Type parsing
 			rd = instruction[1].strip(',')[1]
 			rs = instruction[2].strip(',')[1]
 			rt = instruction[3][1]
@@ -165,7 +161,7 @@ while True:
 			iirt = rt
 			iird = rd
 
-			# load-use data hazed determination
+			# load-use data hazard determination
 			if iem == 1 and (iert == iirs or iert == iirt != 0) and iert != 0:
 				# pc write와 IF/ID Write 0 으로 설정
 				pcw = 0
@@ -238,7 +234,6 @@ while True:
 	fw.write('| Cycle {:>3}   | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}  | {:>2}     | {:>2}      | {:>2}   | {:>2}  | {:>2}     | {:>2}  | {:>2}     | {:>2}        | {:>2}        | {:>2}       | {:>2}          | {:>2}          |\n'\
 	.format(cycle, iirs, iirt, iird, iers, iert, ierd, iew, iem, ied, emrd, emw, mwrd, mww, fa, fb, pcw, iiw, ief))
 	fw.write('|-------------|-----|-----|-----|-----|-----|-----|--------|---------|------|-----|--------|-----|--------|-----------|-----------|----------|-------------|-------------|\n')
-
 
 ### 파일 읽기 쓰기 종료 ###
 fr.close()
